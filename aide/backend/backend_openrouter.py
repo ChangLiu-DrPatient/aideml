@@ -7,7 +7,11 @@ import time
 from funcy import notnone, once, select_values
 import openai
 
-from .utils import FunctionSpec, OutputType, backoff_create
+from aide.backend.utils import (
+    FunctionSpec,
+    OutputType,
+    backoff_create,
+)
 
 logger = logging.getLogger("aide")
 
@@ -35,6 +39,7 @@ def query(
     system_message: str | None,
     user_message: str | None,
     func_spec: FunctionSpec | None = None,
+    convert_system_to_user: bool = False,
     **model_kwargs,
 ) -> tuple[OutputType, float, int, int, dict]:
     _setup_openrouter_client()

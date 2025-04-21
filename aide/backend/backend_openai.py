@@ -4,13 +4,19 @@ import json
 import logging
 import time
 
-from .utils import FunctionSpec, OutputType, opt_messages_to_list, backoff_create
+from aide.backend.utils import (
+    FunctionSpec,
+    OutputType,
+    opt_messages_to_list,
+    backoff_create,
+)
 from funcy import notnone, once, select_values
 import openai
 
 logger = logging.getLogger("aide")
 
 _client: openai.OpenAI = None  # type: ignore
+
 
 OPENAI_TIMEOUT_EXCEPTIONS = (
     openai.RateLimitError,
@@ -30,90 +36,46 @@ def query(
     system_message: str | None,
     user_message: str | None,
     func_spec: FunctionSpec | None = None,
+    convert_system_to_user: bool = False,
     **model_kwargs,
 ) -> tuple[OutputType, float, int, int, dict]:
-    """
-    Query the OpenAI API, optionally with function calling.
-    If the model doesn't support function calling, gracefully degrade to text generation.
-    """
     _setup_openai_client()
-    filtered_kwargs: dict = select_values(notnone, model_kwargs)
+    filtered_kwargs: dict = select_values(notnone, model_kwargs)  # type: ignore
 
-    # Convert system/user messages to the format required by the client
-    messages = opt_messages_to_list(system_message, user_message)
+    messages = opt_messages_to_list(system_message, user_message, convert_system_to_user=convert_system_to_user)
 
-    # If function calling is requested, attach the function spec
     if func_spec is not None:
         filtered_kwargs["tools"] = [func_spec.as_openai_tool_dict]
+        # force the model the use the function
         filtered_kwargs["tool_choice"] = func_spec.openai_tool_choice_dict
 
-    completion = None
     t0 = time.time()
-
-    # Attempt the API call
-    try:
-        completion = backoff_create(
-            _client.chat.completions.create,
-            OPENAI_TIMEOUT_EXCEPTIONS,
-            messages=messages,
-            **filtered_kwargs,
-        )
-    except openai.BadRequestError as e:
-        # Check whether the error indicates that function calling is not supported
-        if "function calling" in str(e).lower() or "tools" in str(e).lower():
-            logger.warning(
-                "Function calling was attempted but is not supported by this model. "
-                "Falling back to plain text generation."
-            )
-            # Remove function-calling parameters and retry
-            filtered_kwargs.pop("tools", None)
-            filtered_kwargs.pop("tool_choice", None)
-
-            # Retry without function calling
-            completion = backoff_create(
-                _client.chat.completions.create,
-                OPENAI_TIMEOUT_EXCEPTIONS,
-                messages=messages,
-                **filtered_kwargs,
-            )
-        else:
-            # If it's some other error, re-raise
-            raise
-
+    completion = backoff_create(
+        _client.chat.completions.create,
+        OPENAI_TIMEOUT_EXCEPTIONS,
+        messages=messages,
+        **filtered_kwargs,
+    )
     req_time = time.time() - t0
+
     choice = completion.choices[0]
 
-    # Decide how to parse the response
-    if func_spec is None or "tools" not in filtered_kwargs:
-        # No function calling was ultimately used
+    if func_spec is None:
         output = choice.message.content
     else:
-        # Attempt to extract tool calls
-        tool_calls = getattr(choice.message, "tool_calls", None)
-        if not tool_calls:
-            logger.warning(
-                "No function call was used despite function spec. Fallback to text.\n"
-                f"Message content: {choice.message.content}"
+        assert (
+            choice.message.tool_calls
+        ), f"function_call is empty, it is not a function call: {choice.message}"
+        assert (
+            choice.message.tool_calls[0].function.name == func_spec.name
+        ), "Function name mismatch"
+        try:
+            output = json.loads(choice.message.tool_calls[0].function.arguments)
+        except json.JSONDecodeError as e:
+            logger.error(
+                f"Error decoding the function arguments: {choice.message.tool_calls[0].function.arguments}"
             )
-            output = choice.message.content
-        else:
-            first_call = tool_calls[0]
-            # Optional: verify that the function name matches
-            if first_call.function.name != func_spec.name:
-                logger.warning(
-                    f"Function name mismatch: expected {func_spec.name}, "
-                    f"got {first_call.function.name}. Fallback to text."
-                )
-                output = choice.message.content
-            else:
-                try:
-                    output = json.loads(first_call.function.arguments)
-                except json.JSONDecodeError as ex:
-                    logger.error(
-                        "Error decoding function arguments:\n"
-                        f"{first_call.function.arguments}"
-                    )
-                    raise ex
+            raise e
 
     in_tokens = completion.usage.prompt_tokens
     out_tokens = completion.usage.completion_tokens
