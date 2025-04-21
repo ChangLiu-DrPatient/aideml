@@ -236,9 +236,18 @@ class Interpreter:
         except queue.Empty:
             msg = "REPL child process failed to start execution"
             logger.critical(msg)
+            queue_dump = ""
             while not self.result_outq.empty():
-                logger.error(f"REPL output queue dump: {self.result_outq.get()}")
-            raise RuntimeError(msg) from None
+                queue_dump = self.result_outq.get()
+                logger.error(f"REPL output queue dump: {queue_dump[:1000]}")
+            self.cleanup_session()
+            return ExecutionResult(
+                term_out=[msg, queue_dump],
+                exec_time=0,
+                exc_type="RuntimeError",
+                exc_info={},
+                exc_stack=[],
+            )
         assert state[0] == "state:ready", state
         start_time = time.time()
 
@@ -258,11 +267,18 @@ class Interpreter:
                 if not child_in_overtime and not self.process.is_alive():
                     msg = "REPL child process died unexpectedly"
                     logger.critical(msg)
+                    queue_dump = ""
                     while not self.result_outq.empty():
-                        logger.error(
-                            f"REPL output queue dump: {self.result_outq.get()}"
-                        )
-                    raise RuntimeError(msg) from None
+                        queue_dump = self.result_outq.get()
+                        logger.error(f"REPL output queue dump: {queue_dump[:1000]}")
+                    self.cleanup_session()
+                    return ExecutionResult(
+                        term_out=[msg, queue_dump],
+                        exec_time=0,
+                        exc_type="RuntimeError",
+                        exc_info={},
+                        exc_stack=[],
+                    )
 
                 # child is alive and still executing -> check if we should sigint..
                 if self.timeout is None:
@@ -286,16 +302,8 @@ class Interpreter:
         # read all stdout/stderr from child up to the EOF marker
         # waiting until the queue is empty is not enough since
         # the feeder thread in child might still be adding to the queue
-        start_collect = time.time()
         while not self.result_outq.empty() or not output or output[-1] != "<|EOF|>":
-            try:
-                # Add 5-second timeout for output collection
-                if time.time() - start_collect > 5:
-                    logger.warning("Output collection timed out")
-                    break
-                output.append(self.result_outq.get(timeout=1))
-            except queue.Empty:
-                continue
+            output.append(self.result_outq.get())
         output.pop()  # remove the EOF marker
 
         e_cls_name, exc_info, exc_stack = state[1:]
