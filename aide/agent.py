@@ -114,8 +114,18 @@ class Agent:
         random.shuffle(pkgs)
         pkg_str = ", ".join([f"`{p}`" for p in pkgs])
 
+        ts_pksg = [
+            "sktime", 
+            "statsforecast",
+            "tsfresh",
+            "neuralforecast",
+            "gluonts",
+        ]
+        random.shuffle(ts_pksg)
+        ts_pkg_str = ", ".join([f"`{p}`" for p in ts_pksg])
+
         env_prompt = {
-            "Installed Packages": f"Your solution can use any relevant machine learning packages such as: {pkg_str}. Feel free to use any other packages too (all packages are already installed!). For neural networks we suggest using PyTorch rather than TensorFlow."
+            "Installed Packages": f"Your solution can use any relevant machine learning packages such as: {pkg_str}. For time-series analysis tasks, you might use relevant packages such as:{ts_pkg_str}. Feel free to use any other packages too (all packages are already installed!). For neural networks we suggest using PyTorch rather than TensorFlow."
         }
         return env_prompt
 
