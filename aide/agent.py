@@ -196,7 +196,7 @@ class Agent:
         """Generate a natural language plan + code in the same LLM call and split them apart."""
         completion_text = None
         for _ in range(retries):
-            completion_text, input_tokens_used, output_tokens_used = query(
+            completion_text = query(
                 system_message=prompt,
                 user_message=None,
                 model=self.acfg.code.model,
