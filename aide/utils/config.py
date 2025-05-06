@@ -41,7 +41,7 @@ class SearchConfig:
 class AgentConfig:
     steps: int
     time_limit: int
-    cost_limit: int | None
+    cost_limit: int | None = None
     k_fold_validation: int
     expose_prediction: bool
     data_preview: bool
