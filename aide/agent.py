@@ -5,7 +5,7 @@ import time
 from typing import Any, Callable, cast
 
 import humanize
-from .backend import FunctionSpec, query
+from .backend import FunctionSpec, query, TokenCounter
 from .interpreter import ExecutionResult
 from .journal import Journal, Node
 from .utils import data_preview
@@ -63,6 +63,12 @@ class Agent:
         self.data_preview: str | None = None
         self.start_time = time.time()
         self.current_step = 0
+        if self.acfg.cost_limit:
+            self.token_counter = TokenCounter(
+                max_cost=self.acfg.cost_limit,
+            )
+        else:
+            self.token_counter = None
 
     def search_policy(self) -> Node | None:
         """Select a node to work on (or None to draft a new node)."""
@@ -125,7 +131,7 @@ class Agent:
         ts_pkg_str = ", ".join([f"`{p}`" for p in ts_pksg])
 
         env_prompt = {
-            "Installed Packages": f"Your solution can use any relevant machine learning packages such as: {pkg_str}. For time-series analysis tasks, you might use relevant packages such as:{ts_pkg_str}. Feel free to use any other packages too (all packages are already installed!). For neural networks we suggest using PyTorch rather than TensorFlow."
+            "Installed Packages": f"Your solution can use any relevant machine learning packages such as: {pkg_str}. For time-series analysis tasks, you might use relevant packages such as:{ts_pkg_str}. Feel free to use any other packages too (all packages are already installed!). For neural networks we suggest using PyTorch rather than TensorFlow unless specified."
         }
         return env_prompt
 
@@ -135,9 +141,18 @@ class Agent:
         tot_time_remaining = self.acfg.time_limit - tot_time_elapsed
         exec_timeout = int(min(self.cfg.exec.timeout, tot_time_remaining))
 
-        impl_guideline = [
-            f"<TOTAL_TIME_REMAINING: {format_time(tot_time_remaining)}>",
-            f"<TOTAL_STEPS_REMAINING: {self.acfg.steps - self.current_step}>",
+        if self.acfg.remind_resource_limit:
+            impl_guideline = [f"<TOTAL_TIME_REMAINING: {format_time(tot_time_remaining)}>",
+                              f"<TOTAL_STEPS_REMAINING: {self.acfg.steps - self.current_step}>"]
+            
+            if self.token_counter:
+                impl_guideline.append(
+                    f"<OUTPUT_TOKEN_LIMIT_REMAINING: {self.token_counter.remaining_output_tokens(self.acfg.code.model)}>"
+                )
+        else:
+            impl_guideline = []
+        
+        impl_guideline += [
             "The code should **implement the proposed solution** and **print the value of the evaluation metric computed on a hold-out validation set**.",
             "**AND MOST IMPORTANTLY SAVE PREDICTIONS ON THE PROVIDED UNLABELED TEST DATA IN REQUIRED FILE FORMAT IN THE ./submission/ DIRECTORY.**",
             "The code should be a single-file python program that is self-contained and can be executed as-is.",
@@ -177,11 +192,12 @@ class Agent:
         """Generate a natural language plan + code in the same LLM call and split them apart."""
         completion_text = None
         for _ in range(retries):
-            completion_text = query(
+            completion_text, input_tokens_used, output_tokens_used = query(
                 system_message=prompt,
                 user_message=None,
                 model=self.acfg.code.model,
                 temperature=self.acfg.code.temp,
+                token_counter=self.token_counter,
             )
 
             code = extract_code(completion_text)
@@ -198,7 +214,7 @@ class Agent:
     def _draft(self) -> Node:
         prompt: Any = {
             "Introduction": (
-                "You are a data science grandmaster attending a competition. "
+                "You are a data scientist attending a competition. "
                 "In order to win this competition, you need to come up with an excellent and creative plan "
                 "for a solution and then implement this solution in Python. We will now provide a description of the task."
             ),
@@ -232,7 +248,7 @@ class Agent:
     def _improve(self, parent_node: Node) -> Node:
         prompt: Any = {
             "Introduction": (
-                "You are a data science grandmaster attending a competition. You are provided with a previously developed "
+                "You are a data scientist attending a competition. You are provided with a previously developed "
                 "solution below and should improve it in order to further increase the (test time) performance. "
                 "For this you should first outline a brief plan in natural language for how the solution can be improved and "
                 "then implement this improvement in Python based on the provided previous solution. "
@@ -266,7 +282,7 @@ class Agent:
     def _debug(self, parent_node: Node) -> Node:
         prompt: Any = {
             "Introduction": (
-                "You are a data science grandmaster attending a competition. "
+                "You are a data scientist attending a competition. "
                 "Your previous solution had a bug, so based on the information below, you should revise it in order to fix this bug. "
                 "Your response should be an implementation outline in natural language,"
                 " followed by a single markdown code block which implements the bugfix/solution."
@@ -298,7 +314,7 @@ class Agent:
     ):
         self.data_preview = data_preview.generate(self.cfg.workspace_dir)
 
-    def step(self, exec_callback: ExecCallbackType):
+    def step(self, exec_callback: ExecCallbackType) -> bool:
         # clear the submission dir from previous steps
         shutil.rmtree(self.cfg.workspace_dir / "submission", ignore_errors=True)
         (self.cfg.workspace_dir / "submission").mkdir(exist_ok=True)
@@ -348,6 +364,9 @@ class Agent:
                 logger.info(f"Node {best_node.id} is still the best node")
         self.current_step += 1
 
+        exceed_budget_limit = self.token_counter.exceed_budget_limit()
+        return exceed_budget_limit
+    
     def parse_exec_result(self, node: Node, exec_result: ExecutionResult):
         logger.info(f"Agent is parsing execution results for node {node.id}")
 
@@ -355,7 +374,7 @@ class Agent:
 
         prompt = {
             "Introduction": (
-                "You are a data science grandmaster attending a competition. "
+                "You are a data scientist attending a competition. "
                 "You have written code to solve this task and now need to evaluate the output of the code execution. "
                 "You should determine if there were any bugs as well as report the empirical findings."
             ),
@@ -372,6 +391,7 @@ class Agent:
                 func_spec=review_func_spec,
                 model=self.acfg.feedback.model,
                 temperature=self.acfg.feedback.temp,
+                token_counter=self.token_counter,
             ),
         )
 

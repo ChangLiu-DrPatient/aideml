@@ -12,7 +12,6 @@ from .journal2report import journal2report
 from omegaconf import OmegaConf
 from rich.columns import Columns
 from rich.console import Group
-from rich.live import Live
 from rich.padding import Padding
 from rich.panel import Panel
 from rich.progress import (
@@ -185,13 +184,17 @@ def run():
             subtitle="Press [b]Ctrl+C[/b] to stop the run",
         )
 
-    while global_step < cfg.agent.steps:
-        agent.step(exec_callback=exec_callback)
+    exceed_budget_limit = False
+    while global_step < cfg.agent.steps and not exceed_budget_limit:
+        exceed_budget_limit = agent.step(exec_callback=exec_callback)
         # on the last step, print the tree
         if global_step == cfg.agent.steps - 1:
             logger.info(journal_to_string_tree(journal))
         save_run(cfg, journal)
         global_step = len(journal)
+    if exceed_budget_limit and global_step < cfg.agent.steps:
+        logger.info(journal_to_string_tree(journal))
+        logger.info("Budget limit exceeded, stopping run.")
     interpreter.cleanup_session()
 
     if cfg.generate_report:

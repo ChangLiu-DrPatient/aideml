@@ -42,9 +42,11 @@ class SearchConfig:
 class AgentConfig:
     steps: int
     time_limit: int
+    cost_limit: int | None
     k_fold_validation: int
     expose_prediction: bool
     data_preview: bool
+    remind_resource_limit: bool
 
     code: StageConfig
     feedback: StageConfig
