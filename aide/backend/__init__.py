@@ -98,7 +98,7 @@ class TokenCounter:
         check if the budget limit is exceeded
         """
 
-        current_cost = self.cost
+        current_cost = self.cost()
         return current_cost >= self.cost_limit
 
 
