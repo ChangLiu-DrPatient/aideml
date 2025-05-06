@@ -5,11 +5,11 @@ from typing import Callable
 import jsonschema
 from dataclasses_json import DataClassJsonMixin
 
+import backoff
+
 PromptType = str | dict | list
 FunctionCallType = dict
 OutputType = str | FunctionCallType
-
-import backoff
 
 logger = logging.getLogger("aide")
 

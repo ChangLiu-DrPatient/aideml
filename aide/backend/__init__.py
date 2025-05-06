@@ -2,7 +2,6 @@ from collections import defaultdict
 
 import logging
 
-from nbformat import current
 from . import backend_anthropic, backend_openai, backend_openrouter, backend_gdm
 from .utils import FunctionSpec, OutputType, PromptType, compile_prompt_to_md
 
@@ -149,7 +148,7 @@ def query(
         **model_kwargs,
     )
     logger.info(f"response: {output}", extra={"verbose": True})
-    logger.info(f"---Query complete---", extra={"verbose": True})
+    logger.info("---Query complete---", extra={"verbose": True})
     if token_counter is not None:
         token_counter.add_tokens(model, input_tokens=in_tok_count, output_tokens=out_tok_count)
 
