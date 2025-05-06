@@ -85,7 +85,7 @@ class TokenCounter:
         if model_name not in MODEL_COST:
             raise ValueError(f"Model {model_name} not supported for token counting")
 
-        current_cost = self.cost
+        current_cost = self.cost()
         remaining_budget = self.cost_limit - current_cost
         if remaining_budget <= 0:
             return 0
@@ -99,7 +99,7 @@ class TokenCounter:
         """
 
         current_cost = self.cost
-        return current_cost > self.cost_limit
+        return current_cost >= self.cost_limit
 
 
 def query(
