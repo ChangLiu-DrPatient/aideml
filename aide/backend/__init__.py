@@ -10,8 +10,8 @@ logger = logging.getLogger("aide")
 # cost per input/output token for each model
 MODEL_COST = {
     "gpt-4o-2024-08-06": {"input": 2.5 / 1000000, "output": 10 / 1000000},
-    "o3-mini": {"input": 1.1 / 1000000, "output": 4.4 / 1000000},
-    "o3": {"input": 10 / 1000000, "output": 40 / 1000000},
+    "o3-mini-2025-01-31": {"input": 1.1 / 1000000, "output": 4.4 / 1000000},
+    "o3-2025-04-16": {"input": 10 / 1000000, "output": 40 / 1000000},
 }
 
 
