@@ -370,8 +370,12 @@ class Agent:
                 logger.info(f"Node {best_node.id} is still the best node")
         self.current_step += 1
 
-        exceed_budget_limit = self.token_counter.exceed_budget_limit()
-        return exceed_budget_limit
+        # check early exit required by token counter
+        if self.token_counter:
+            exceed_budget_limit = self.token_counter.exceed_budget_limit()
+            return exceed_budget_limit
+
+        return False
 
     def parse_exec_result(self, node: Node, exec_result: ExecutionResult):
         logger.info(f"Agent is parsing execution results for node {node.id}")
