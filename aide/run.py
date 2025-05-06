@@ -26,6 +26,7 @@ from rich.status import Status
 from rich.tree import Tree
 from .utils.config import load_task_desc, prep_agent_workspace, save_run, load_cfg
 
+
 class VerboseFilter(logging.Filter):
     """
     Filter (remove) logs that have verbose attribute set to True
@@ -33,6 +34,7 @@ class VerboseFilter(logging.Filter):
 
     def filter(self, record):
         return not (hasattr(record, "verbose") and record.verbose)
+
 
 def journal_to_rich_tree(journal: Journal):
     best_node = journal.get_best_node()

@@ -15,9 +15,11 @@ from .utils.response import extract_code, extract_text_up_to_code, wrap_code
 
 logger = logging.getLogger("aide")
 
+
 def format_time(time_in_sec: int):
     return f"{time_in_sec // 3600}hrs {(time_in_sec % 3600) // 60}mins {time_in_sec % 60}secs"
-    
+
+
 ExecCallbackType = Callable[[str, bool], ExecutionResult]
 
 review_func_spec = FunctionSpec(
@@ -65,7 +67,7 @@ class Agent:
         self.current_step = 0
         if self.acfg.cost_limit:
             self.token_counter = TokenCounter(
-                max_cost=self.acfg.cost_limit,
+                cost_limit=self.acfg.cost_limit,
             )
         else:
             self.token_counter = None
@@ -121,7 +123,7 @@ class Agent:
         pkg_str = ", ".join([f"`{p}`" for p in pkgs])
 
         ts_pksg = [
-            "sktime", 
+            "sktime",
             "statsforecast",
             "tsfresh",
             "neuralforecast",
@@ -142,16 +144,18 @@ class Agent:
         exec_timeout = int(min(self.cfg.exec.timeout, tot_time_remaining))
 
         if self.acfg.remind_resource_limit:
-            impl_guideline = [f"<TOTAL_TIME_REMAINING: {format_time(tot_time_remaining)}>",
-                              f"<TOTAL_STEPS_REMAINING: {self.acfg.steps - self.current_step}>"]
-            
+            impl_guideline = [
+                f"<TOTAL_TIME_REMAINING: {format_time(tot_time_remaining)}>",
+                f"<TOTAL_STEPS_REMAINING: {self.acfg.steps - self.current_step}>",
+            ]
+
             if self.token_counter:
                 impl_guideline.append(
                     f"<OUTPUT_TOKEN_LIMIT_REMAINING: {self.token_counter.remaining_output_tokens(self.acfg.code.model)}>"
                 )
         else:
             impl_guideline = []
-        
+
         impl_guideline += [
             "The code should **implement the proposed solution** and **print the value of the evaluation metric computed on a hold-out validation set**.",
             "**AND MOST IMPORTANTLY SAVE PREDICTIONS ON THE PROVIDED UNLABELED TEST DATA IN REQUIRED FILE FORMAT IN THE ./submission/ DIRECTORY.**",
@@ -352,7 +356,9 @@ class Agent:
                 for item in submission_idr.iterdir():
                     if item.is_file():
                         shutil.copy(item, best_submission_dir / item.name)
-                        logger.info(f"Copied {item.name} to {best_submission_dir / item.name}")
+                        logger.info(
+                            f"Copied {item.name} to {best_submission_dir / item.name}"
+                        )
                 # copy solution.py and relevant node id to best_solution/
                 with open(best_solution_dir / "solution.py", "w") as f:
                     f.write(result_node.code)
@@ -366,7 +372,7 @@ class Agent:
 
         exceed_budget_limit = self.token_counter.exceed_budget_limit()
         return exceed_budget_limit
-    
+
     def parse_exec_result(self, node: Node, exec_result: ExecutionResult):
         logger.info(f"Agent is parsing execution results for node {node.id}")
 
@@ -407,9 +413,7 @@ class Agent:
         )
 
         if node.is_buggy:
-            logger.info(
-                f"Parsed results: Node {node.id} is buggy"
-            )
+            logger.info(f"Parsed results: Node {node.id} is buggy")
             node.metric = WorstMetricValue()
         else:
             logger.info(f"Parsed results: Node {node.id} is not buggy")

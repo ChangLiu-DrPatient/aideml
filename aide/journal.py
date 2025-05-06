@@ -192,6 +192,7 @@ class Journal(DataClassJsonMixin):
             summary.append(summary_part)
         return "\n-------------------------------\n".join(summary)
 
+
 def get_path_to_node(journal: Journal, node_id: str) -> list[str]:
     path = [node_id]
 

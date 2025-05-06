@@ -7,15 +7,21 @@ from .utils import FunctionSpec, OutputType, PromptType, compile_prompt_to_md
 
 logger = logging.getLogger("aide")
 
-#cost per input/output token for each model 
+# cost per input/output token for each model
 MODEL_COST = {
-    "gpt-4o-2024-08-06": {"input": 2.5/1000000, "output": 10/1000000},
-    "o3-mini": {"input": 1.1/1000000, "output": 4.4/1000000},
-    "o3": {"input": 10/1000000, "output": 40/1000000},
+    "gpt-4o-2024-08-06": {"input": 2.5 / 1000000, "output": 10 / 1000000},
+    "o3-mini": {"input": 1.1 / 1000000, "output": 4.4 / 1000000},
+    "o3": {"input": 10 / 1000000, "output": 40 / 1000000},
 }
 
+
 def determine_provider(model: str) -> str:
-    if model.startswith("gpt-") or model.startswith("o1-") or model.startswith("o3-") or model.startswith("o4-"):
+    if (
+        model.startswith("gpt-")
+        or model.startswith("o1-")
+        or model.startswith("o3-")
+        or model.startswith("o4-")
+    ):
         return "openai"
     elif model.startswith("claude-"):
         return "anthropic"
@@ -33,51 +39,52 @@ provider_to_query_func = {
     "openrouter": backend_openrouter.query,
 }
 
+
 class TokenCounter:
-    def __init__(self, cost_limit:int):
+    def __init__(self, cost_limit: int):
         self.cost_limit = cost_limit
         self.total_input_tokens = defaultdict(int)
         self.total_output_tokens = defaultdict(int)
-        
+
     def cost(self) -> float:
-        '''
+        """
         compute to total cost of the tokens used
-        '''
+        """
         total_cost = 0
 
-        #compute cost for input tokens
+        # compute cost for input tokens
         for model_name, input_tokens in self.total_input_tokens.items():
             if model_name not in MODEL_COST:
                 raise ValueError(f"Model {model_name} not supported for token counting")
             total_cost += input_tokens * MODEL_COST[model_name]["input"]
-        
-        #compute cost for output tokens
+
+        # compute cost for output tokens
         for model_name, output_tokens in self.total_output_tokens.items():
             if model_name not in MODEL_COST:
                 raise ValueError(f"Model {model_name} not supported for token counting")
             total_cost += output_tokens * MODEL_COST[model_name]["output"]
         return total_cost
-    
-    def add_tokens(self, model_name:str, input_tokens=None, output_tokens=None):
-        '''
+
+    def add_tokens(self, model_name: str, input_tokens=None, output_tokens=None):
+        """
         update the token counts
-        '''
+        """
         if model_name not in MODEL_COST:
             raise ValueError(f"Model {model_name} not supported for token counting")
-        
+
         if input_tokens is not None:
             self.total_input_tokens[model_name] += input_tokens
         if output_tokens is not None:
             self.total_output_tokens[model_name] += output_tokens
 
-    def remaining_output_tokens(self, model_name:str, max_budget:int) -> int:
-        '''
+    def remaining_output_tokens(self, model_name: str, max_budget: int) -> int:
+        """
         max_budget: the maximum dollar budget for the model
         compute the remaining tokens for a model
-        '''
+        """
         if model_name not in MODEL_COST:
             raise ValueError(f"Model {model_name} not supported for token counting")
-        
+
         current_cost = self.cost
         remaining_budget = max_budget - current_cost
         if remaining_budget <= 0:
@@ -85,15 +92,16 @@ class TokenCounter:
         else:
             output_tokens_cost = MODEL_COST[model_name]["output"]
             return int(remaining_budget / output_tokens_cost)
-    
+
     def exceed_budget_limit(self) -> bool:
-        '''
+        """
         check if the budget limit is exceeded
-        '''
-        
+        """
+
         current_cost = self.cost
         return current_cost > self.cost_limit
-    
+
+
 def query(
     system_message: PromptType | None,
     user_message: PromptType | None,
@@ -150,6 +158,8 @@ def query(
     logger.info(f"response: {output}", extra={"verbose": True})
     logger.info("---Query complete---", extra={"verbose": True})
     if token_counter is not None:
-        token_counter.add_tokens(model, input_tokens=in_tok_count, output_tokens=out_tok_count)
+        token_counter.add_tokens(
+            model, input_tokens=in_tok_count, output_tokens=out_tok_count
+        )
 
     return output
