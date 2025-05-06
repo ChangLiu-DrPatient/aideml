@@ -77,7 +77,7 @@ class TokenCounter:
         if output_tokens is not None:
             self.total_output_tokens[model_name] += output_tokens
 
-    def remaining_output_tokens(self, model_name: str, max_budget: int) -> int:
+    def remaining_output_tokens(self, model_name: str) -> int:
         """
         max_budget: the maximum dollar budget for the model
         compute the remaining tokens for a model
@@ -86,7 +86,7 @@ class TokenCounter:
             raise ValueError(f"Model {model_name} not supported for token counting")
 
         current_cost = self.cost
-        remaining_budget = max_budget - current_cost
+        remaining_budget = self.cost_limit - current_cost
         if remaining_budget <= 0:
             return 0
         else:
