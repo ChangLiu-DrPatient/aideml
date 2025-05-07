@@ -3,6 +3,7 @@ import logging
 import random
 import time
 from typing import Any, Callable, cast
+import json
 
 import humanize
 from .backend import FunctionSpec, query, TokenCounter
@@ -359,6 +360,19 @@ class Agent:
                 logger.info(f"Node {result_node.id} is not the best node")
                 logger.info(f"Node {best_node.id} is still the best node")
         self.current_step += 1
+
+        total_cost = self.token_counter.cost()
+        input_tokens_dict = self.token_counter.total_input_tokens
+        output_tokens_dict = self.token_counter.total_output_tokens
+        logger.info(
+            "Total input tokens after current step: %s",
+            json.dumps(input_tokens_dict, sort_keys=True),
+        )
+        logger.info(
+            "Total output tokens after current step: %s",
+            json.dumps(output_tokens_dict, sort_keys=True),
+        )
+        logger.info(f"Total cost after current step: {total_cost:.2f} USD")
 
         # check early exit required by token counter
         if self.token_counter.cost_limit:
