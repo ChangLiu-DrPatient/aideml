@@ -44,7 +44,7 @@ provider_to_query_func = {
 
 
 class TokenCounter:
-    def __init__(self, cost_limit: int):
+    def __init__(self, cost_limit: int | None):
         self.cost_limit = cost_limit
         self.total_input_tokens = defaultdict(int)
         self.total_output_tokens = defaultdict(int)
@@ -100,6 +100,9 @@ class TokenCounter:
         """
         check if the budget limit is exceeded
         """
+        # if the cost limit is None, we don't check for budget limit
+        if self.cost_limit is None:
+            return False
 
         current_cost = self.cost()
         return current_cost >= self.cost_limit

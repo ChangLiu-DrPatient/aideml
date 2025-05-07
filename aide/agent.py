@@ -65,12 +65,7 @@ class Agent:
         self.data_preview: str | None = None
         self.start_time = time.time()
         self.current_step = 0
-        if self.acfg.cost_limit:
-            self.token_counter = TokenCounter(
-                cost_limit=self.acfg.cost_limit,
-            )
-        else:
-            self.token_counter = None
+        self.token_counter = TokenCounter(cost_limit=self.acfg.cost_limit)
 
     def search_policy(self) -> Node | None:
         """Select a node to work on (or None to draft a new node)."""
@@ -366,7 +361,7 @@ class Agent:
         self.current_step += 1
 
         # check early exit required by token counter
-        if self.token_counter:
+        if self.token_counter.cost_limit:
             exceed_budget_limit = self.token_counter.exceed_budget_limit()
             return exceed_budget_limit
 

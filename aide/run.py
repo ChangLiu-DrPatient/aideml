@@ -2,6 +2,7 @@ import atexit
 import logging
 import shutil
 import sys
+import json
 
 from . import backend
 
@@ -197,6 +198,18 @@ def run():
     if exceed_budget_limit and global_step < cfg.agent.steps:
         logger.info(journal_to_string_tree(journal))
         logger.info("Budget limit exceeded, stopping run.")
+    total_cost = agent.token_counter.cost()
+    input_tokens_dict = agent.token_counter.total_input_tokens
+    output_tokens_dict = agent.token_counter.total_output_tokens
+    logger.info(
+        "Total input tokens before report generation: %s",
+        json.dumps(input_tokens_dict, sort_keys=True),
+    )
+    logger.info(
+        "Total output tokens before report generation: %s",
+        json.dumps(output_tokens_dict, sort_keys=True),
+    )
+    logger.info(f"Total cost before report generation: {total_cost:.2f} USD")
     interpreter.cleanup_session()
 
     if cfg.generate_report:
