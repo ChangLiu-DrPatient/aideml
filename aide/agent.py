@@ -148,11 +148,6 @@ class Agent:
                 f"<TOTAL_TIME_REMAINING: {format_time(tot_time_remaining)}>",
                 f"<TOTAL_STEPS_REMAINING: {self.acfg.steps - self.current_step}>",
             ]
-
-            if self.token_counter:
-                impl_guideline.append(
-                    f"<OUTPUT_TOKEN_LIMIT_REMAINING: {self.token_counter.remaining_output_tokens(self.acfg.code.model)}>"
-                )
         else:
             impl_guideline = []
 
