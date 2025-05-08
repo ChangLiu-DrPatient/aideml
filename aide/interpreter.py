@@ -158,6 +158,7 @@ class Interpreter:
 
                 event_outq.put(("state:finished", e_cls_name, exc_info, exc_stack))
             else:
+                logger.debug("[Child] exec finished OK")
                 event_outq.put(("state:finished", None, None, None))
 
             # remove the file after execution (otherwise it might be included in the data preview)
@@ -233,6 +234,7 @@ class Interpreter:
         # wait for child to actually start execution (we don't want interrupt child setup)
         try:
             state = self.event_outq.get(timeout=10)
+            logger.debug("[Parent] got state=%s", state[0])
         except queue.Empty:
             msg = "REPL child process failed to start execution"
             logger.critical(msg)
@@ -259,6 +261,7 @@ class Interpreter:
             try:
                 # check if the child is done
                 state = self.event_outq.get(timeout=1)  # wait for state:finished
+                logger.debug("[Parent exec] got state=%s", state[0])
                 assert state[0] == "state:finished", state
                 exec_time = time.time() - start_time
                 break
