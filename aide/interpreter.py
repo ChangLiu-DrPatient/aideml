@@ -305,8 +305,17 @@ class Interpreter:
         # read all stdout/stderr from child up to the EOF marker
         # waiting until the queue is empty is not enough since
         # the feeder thread in child might still be adding to the queue
+        drain_start = time.time()
         while not self.result_outq.empty() or not output or output[-1] != "<|EOF|>":
-            output.append(self.result_outq.get())
+            logger.debug("[Parent] starting drain; qsize=%d", self.result_outq.qsize())
+            try:
+                output.append(self.result_outq.get(timeout=5))
+            except queue.Empty:
+                logger.error(
+                    "[Parent] drain timeout - q empty, no EOF after %ds",
+                    time.time() - drain_start,
+                )
+                break
         output.pop()  # remove the EOF marker
 
         e_cls_name, exc_info, exc_stack = state[1:]
