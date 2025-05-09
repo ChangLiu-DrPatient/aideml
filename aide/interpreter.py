@@ -186,12 +186,12 @@ class Interpreter:
         try:
             # Reduce grace period from 2 seconds to 0.5
             self.process.terminate()
-            self.process.join(timeout=0.5)
+            self.process.join(timeout=2)
 
             if self.process.exitcode is None:
                 logger.warning("Process failed to terminate, killing immediately")
                 self.process.kill()
-                self.process.join(timeout=0.5)
+                self.process.join(timeout=2)
 
                 if self.process.exitcode is None:
                     logger.error("Process refuses to die, using SIGKILL")
