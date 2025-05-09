@@ -184,7 +184,7 @@ class Interpreter:
         if self.process is None:
             return
         try:
-            # Reduce grace period from 2 seconds to 0.5
+            # total grace period = 8 seconds
             self.process.terminate()
             self.process.join(timeout=2)
 
@@ -196,12 +196,16 @@ class Interpreter:
                 if self.process.exitcode is None:
                     logger.error("Process refuses to die, using SIGKILL")
                     os.kill(self.process.pid, signal.SIGKILL)
+                    self.process.join(timeout=4)
         except Exception as e:
             logger.error(f"Error during process cleanup: {e}")
         finally:
             if self.process is not None:
-                self.process.close()
-                self.process = None
+                try:
+                    self.process.close()  # still try to close
+                except ValueError:
+                    logger.error("Skipping close: child stuck in D-state")
+            self.process = None
 
     def run(self, code: str, reset_session=True) -> ExecutionResult:
         """
