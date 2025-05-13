@@ -15,6 +15,7 @@ MODEL_COST = {
     "o3-2025-04-16": {"input": 10 / 1000000, "output": 40 / 1000000},
     "gpt-4.1-2025-04-14": {"input": 2 / 1000000, "output": 8 / 1000000},
     "gpt-4.1-mini-2025-04-14": {"input": 0.4 / 1000000, "output": 1.6 / 1000000},
+    "claude-3-7-sonnet-20250219": {"input": 3 / 1000000, "output": 15 / 1000000},
 }
 
 
@@ -58,13 +59,19 @@ class TokenCounter:
         # compute cost for input tokens
         for model_name, input_tokens in self.total_input_tokens.items():
             if model_name not in MODEL_COST:
-                raise ValueError(f"Model {model_name} not supported for token counting")
+                logger.warning(
+                    f"Model {model_name} not supported for token counting, skipping"
+                )
+                return -1
             total_cost += input_tokens * MODEL_COST[model_name]["input"]
 
         # compute cost for output tokens
         for model_name, output_tokens in self.total_output_tokens.items():
             if model_name not in MODEL_COST:
-                raise ValueError(f"Model {model_name} not supported for token counting")
+                logger.warning(
+                    f"Model {model_name} not supported for token counting, skipping"
+                )
+                return -1
             total_cost += output_tokens * MODEL_COST[model_name]["output"]
         return total_cost
 
@@ -72,8 +79,6 @@ class TokenCounter:
         """
         update the token counts
         """
-        if model_name not in MODEL_COST:
-            raise ValueError(f"Model {model_name} not supported for token counting")
 
         if input_tokens is not None:
             self.total_input_tokens[model_name] += input_tokens
