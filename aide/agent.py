@@ -192,6 +192,7 @@ class Agent:
                 user_message=None,
                 model=self.acfg.code.model,
                 temperature=self.acfg.code.temp,
+                thinking=self.acfg.enable_thinking,
                 token_counter=self.token_counter,
             )
 

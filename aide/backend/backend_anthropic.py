@@ -44,7 +44,7 @@ def query(
 
     filtered_kwargs: dict = select_values(notnone, model_kwargs)  # type: ignore
     if "max_tokens" not in filtered_kwargs:
-        filtered_kwargs["max_tokens"] = 8192  # default for Claude models
+        filtered_kwargs["max_tokens"] = 16000  # default for Claude models
 
     model_name = filtered_kwargs.get("model", "")
     logger.debug(f"Anthropic query called with model='{model_name}'")
@@ -69,7 +69,22 @@ def query(
         filtered_kwargs["system"] = system_message
 
     messages = opt_messages_to_list(None, user_message)
-
+    if ('claude-sonnet-4' in model_name or 'claude-opus-4' in model_name) and func_spec is not None:
+        if filtered_kwargs.get("enable_thinking", True):
+            print("interleaved thinking enabled...")
+            filtered_kwargs["extra_headers"] = {
+            "anthropic-beta": "interleaved-thinking-2025-05-14"
+            }
+    
+    if ('claude-sonnet-4' in model_name or 'claude-opus-4' in model_name or 'claude-3-7-sonnet' in model_name) and func_spec is None:
+        if filtered_kwargs.get("enable_thinking", True):
+            print("extended thinking enabled...")
+            filtered_kwargs["thinking"] = {
+            "type": "enabled",
+            "budget_tokens": 10000
+            }
+            filtered_kwargs["temperature"] = 1
+    
     t0 = time.time()
     message = backoff_create(
         _client.messages.create,
@@ -92,6 +107,14 @@ def query(
             block.name == func_spec.name
         ), f"Function name mismatch: expected {func_spec.name}, got {block.name}"
         output = block.input  # Anthropic calls the parameters "input"
+    
+    # handle thinking if enabled
+    elif filtered_kwargs.get("enable_thinking", True):
+        for block in message.content:
+            if block.type == "thinking":
+                continue  #! skip thinking blocks for now
+            elif block.type == "text":
+                output = block.text
     else:
         # For non-tool responses, ensure we have text content
         assert len(message.content) == 1, "Expected single content item"
