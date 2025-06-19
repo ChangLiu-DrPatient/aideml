@@ -47,7 +47,6 @@ agent:
   data_preview: True
   # whether to provide the agent any reminders about the resource limits
   remind_resource_limit: False
-  # whether to enable thinking (for latest claude models)
 
   # LLM settings for coding
   code:
@@ -58,7 +57,6 @@ agent:
   feedback:
     model: gpt-4-turbo
     temp: 0.5
-    # whether to enable thinking (for latest claude models)
 
   # hyperparameters for the tree search
   search:
