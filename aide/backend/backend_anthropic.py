@@ -44,7 +44,10 @@ def query(
 
     filtered_kwargs: dict = select_values(notnone, model_kwargs)  # type: ignore
     if "max_tokens" not in filtered_kwargs:
-        filtered_kwargs["max_tokens"] = 16000  # default for Claude models
+        if "claude-3-5-sonnet" in filtered_kwargs["model"]:
+            filtered_kwargs["max_tokens"] = 8192
+        else:
+            filtered_kwargs["max_tokens"] = 16000  # default for Claude models
 
     model_name = filtered_kwargs.get("model", "")
     logger.debug(f"Anthropic query called with model='{model_name}'")
@@ -69,22 +72,27 @@ def query(
         filtered_kwargs["system"] = system_message
 
     messages = opt_messages_to_list(None, user_message)
+    think = False
     if ('claude-sonnet-4' in model_name or 'claude-opus-4' in model_name) and func_spec is not None:
-        if filtered_kwargs.get("enable_thinking", True):
+        if model_name.endswith('-think'):
+            think = True
             print("interleaved thinking enabled...")
             filtered_kwargs["extra_headers"] = {
             "anthropic-beta": "interleaved-thinking-2025-05-14"
             }
     
     if ('claude-sonnet-4' in model_name or 'claude-opus-4' in model_name or 'claude-3-7-sonnet' in model_name) and func_spec is None:
-        if filtered_kwargs.get("enable_thinking", True):
+        if model_name.endswith('-think'):
+            think = True
             print("extended thinking enabled...")
             filtered_kwargs["thinking"] = {
             "type": "enabled",
             "budget_tokens": 10000
             }
             filtered_kwargs["temperature"] = 1
-    
+    if model_name.endswith('-think'):
+        # remove trailing '-think' from model name
+        filtered_kwargs["model"] = model_name[:-6]
     t0 = time.time()
     message = backoff_create(
         _client.messages.create,
@@ -109,7 +117,7 @@ def query(
         output = block.input  # Anthropic calls the parameters "input"
     
     # handle thinking if enabled
-    elif filtered_kwargs.get("enable_thinking", True):
+    elif think:
         for block in message.content:
             if block.type == "thinking":
                 continue  #! skip thinking blocks for now
