@@ -24,7 +24,11 @@ MODEL_COST = {
     "claude-3-5-sonnet-20241022-think": {"input": 3 / 1000000, "output": 15 / 1000000},
     "gemini-2.5-flash-preview-05-20": {"input": 0.15 / 1000000, "output": 3.5 / 1000000},
     "gemini-2.5-pro-preview-06-05": {"input": 1.25 / 1000000, "output": 10 / 1000000},
-    "Llama-4-Maverick-17B-128E-Instruct-FP8": {"input": 0 / 1000000, "output": 0 / 1000000},  #?
+    "deepseek-reasoner": {"input": 0.55 / 1000000, "output": 2.19 / 1000000},
+    "deepseek-chat": {"input": 0.27 / 1000000, "output": 1.1 / 1000000},
+    "Llama-4-Maverick-17B-128E-Instruct-FP8": {"input": 0 / 1000000, "output": 0 / 1000000},
+    "Llama-3.3-8B-Instruct": {"input": 0 / 1000000, "output": 0 / 1000000},
+    "Llama-3.3-70B-Instruct": {"input": 0 / 1000000, "output": 0 / 1000000},
 }
 
 
@@ -34,14 +38,14 @@ def determine_provider(model: str) -> str:
         or model.startswith("o1-")
         or model.startswith("o3-")
         or model.startswith("o4-")
+        or model.startswith("deepseek-")
+        or model.startswith("Llama-")
     ):
         return "openai"
     elif model.startswith("claude-"):
         return "anthropic"
     elif model.startswith("gemini-"):
         return "gdm"
-    elif model.startswith("Llama-"):
-        return "meta"
     # all other models are handle by openrouter
     else:
         return "openrouter"
